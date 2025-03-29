@@ -7,13 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class TallyClient:
-    # Rate limiting constants
-    MAX_RETRIES = 3
-    INITIAL_RETRY_DELAY = 60  # seconds
-    MAX_RETRY_DELAY = 300  # seconds
-    RETRY_MULTIPLIER = 2  # Exponential backoff multiplier
-
-    def __init__(self, governor_id: Optional[str] = None):
+    def __init__(self):
         self.api_key = os.getenv("TALLY_API_KEY")
         if not self.api_key:
             raise ValueError("TALLY_API_KEY not set in environment")
@@ -24,74 +18,30 @@ class TallyClient:
         }
         self.session: Optional[aiohttp.ClientSession] = None
 
-        self.governor_id = governor_id or "eip155:1:0xEC568fffba86c094cf06b22134B23074DFE2252c"
+        self.governor_id = "eip155:1:0xEC568fffba86c094cf06b22134B23074DFE2252c"
         self.whale_address = "0x8b37a5Af68D315cf5A64097D96621F64b5502a22".lower()
         self.stablelab_addresses = [
             "0x74aa2213b7e4da722c56455bcbf5c2cde6e7c5f1"  # Add more if needed
         ]
 
-    async def __aenter__(self):
-        """Initialize the session when entering the context."""
-        if not self.session:
-            self.session = aiohttp.ClientSession(headers=self.headers)
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Close the session when exiting the context."""
-        if self.session:
-            await self.session.close()
-            self.session = None
-
     async def _make_request(self, query: str, variables: Dict) -> Optional[Dict]:
-        """Make a request to the Tally API with rate limit handling."""
         if not self.session:
-            self.session = aiohttp.ClientSession(headers=self.headers)
+            self.session = aiohttp.ClientSession()
 
-        retry_count = 0
-        retry_delay = self.INITIAL_RETRY_DELAY
-
-        while retry_count < self.MAX_RETRIES:
-            try:
-                async with self.session.post(
-                    self.base_url,
-                    headers=self.headers,
-                    json={"query": query, "variables": variables}
-                ) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    elif response.status == 429:  # Rate limit hit
-                        retry_count += 1
-                        if retry_count >= self.MAX_RETRIES:
-                            print(f"Max retries ({self.MAX_RETRIES}) reached. Giving up.")
-                            return None
-                        
-                        # Get rate limit info from headers if available
-                        retry_after = response.headers.get('Retry-After')
-                        if retry_after:
-                            try:
-                                retry_delay = int(retry_after)
-                            except ValueError:
-                                pass  # Use exponential backoff if header is invalid
-                        
-                        print(f"Rate limit hit. Waiting {retry_delay} seconds before retry {retry_count}/{self.MAX_RETRIES}")
-                        await asyncio.sleep(retry_delay)
-                        retry_delay = min(retry_delay * self.RETRY_MULTIPLIER, self.MAX_RETRY_DELAY)
-                    else:
-                        print(f"Request failed: {response.status}")
-                        try:
-                            print(await response.text())
-                        except:
-                            pass
-                        return None
-            except Exception as e:
-                print(f"Request error: {str(e)}")
-                if retry_count >= self.MAX_RETRIES - 1:
-                    return None
-                retry_count += 1
-                await asyncio.sleep(retry_delay)
-                retry_delay = min(retry_delay * self.RETRY_MULTIPLIER, self.MAX_RETRY_DELAY)
-
-        return None
+        async with self.session.post(
+            self.base_url,
+            headers=self.headers,
+            json={"query": query, "variables": variables}
+        ) as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                print(f"Request failed: {response.status}")
+                try:
+                    print(await response.text())
+                except:
+                    pass
+                return None
 
     async def fetch_proposal_batch(self, after_cursor: Optional[str] = None, limit: int = 100) -> Tuple[List[int], Optional[str]]:
         query = """
@@ -217,6 +167,10 @@ class TallyClient:
 
         print("❌ No opposing votes found.")
         return None
+
+    async def close(self):
+        if self.session:
+            await self.session.close()
 
 # Example run
 if __name__ == "__main__":
