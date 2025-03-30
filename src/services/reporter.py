@@ -154,11 +154,11 @@ class Reporter:
             majority_addr = result['highest_power_vote']['voter']
             majority_vp = result['highest_power_vote']['vp']
             
-            reports.append("\n\nFOUND PROPOSAL WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER:\n")
+            reports.append("\n\nFOUND PROPOSAL(S)WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER:\n")
             reports.append(
                 f"🕵️  Found party names:\n"
                 f"    Target ({target_addr}): {target_name}\n"
-                f"    Majority Holder ({majority_addr}): {majority_name}\n\n"
+                f"    Majority Voter ({majority_addr}): {majority_name}\n\n"
             )
             
             reports.append(f"Proposal [📝]: {result['proposal_title']}")
