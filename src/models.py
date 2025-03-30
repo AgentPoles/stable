@@ -16,6 +16,7 @@ class Vote(BaseModel):
     proposal: Proposal
     choice: int
     voter: str
+    vp: float = 0.0  # Voting power, defaults to 0.0
 
 class VoteResponse(BaseModel):
     """Model representing a vote response."""

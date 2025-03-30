@@ -41,6 +41,7 @@ class MajorVotingPowerFinder:
                 logging.info(f"\n  [Proposal {short_id}] Checking votes...")
                 votes_offset = 0
                 voter_addresses = set()
+                highest_power_vote = None
                 
                 while True:
                     logging.info(f"    [Votes {votes_offset+1}-{votes_offset+NUMBER_OF_VOTES_PER_REQUEST}] Checking votes...")
@@ -51,10 +52,13 @@ class MajorVotingPowerFinder:
                     if not votes:
                         break
                         
+                    # Track highest power vote across all batches
+                    if highest_power_vote is None or votes[0]['vp'] > highest_power_vote['vp']:
+                        highest_power_vote = votes[0]
+                    
                     # Check first vote in first batch to see if target is highest power voter
                     if votes_offset == 0:
-                        highest_power_voter = votes[0]['voter']
-                        if highest_power_voter.lower() == target_voter.lower():
+                        if highest_power_vote['voter'].lower() == target_voter.lower():
                             logging.info(f"    [Proposal {short_id}] Target is highest power voter, skipping...")
                             break
                     
@@ -73,7 +77,7 @@ class MajorVotingPowerFinder:
                             'proposal_title': proposal.title,
                             'proposal_created': proposal.created,
                             'target_vote': next(v for v in votes if v['voter'].lower() == target_voter.lower()),
-                            'highest_power_vote': votes[0]
+                            'highest_power_vote': highest_power_vote
                         }
                     
                     votes_offset += NUMBER_OF_VOTES_PER_REQUEST

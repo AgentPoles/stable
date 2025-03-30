@@ -13,8 +13,9 @@ from src.models import VaryingChoices
 from src.config import PARTIES, SPACES
 
 def format_timestamp(timestamp: int) -> str:
-    """Convert Unix timestamp to human readable format."""
-    return datetime.fromtimestamp(timestamp).strftime('%B %d, %Y')
+    """Convert Unix timestamp to human readable format in UTC."""
+    dt = datetime.utcfromtimestamp(timestamp)
+    return dt.strftime('%B %d, %Y %H:%M:%S')
 
 class Reporter:
     """Service for generating reports about voting relationships."""
@@ -140,34 +141,28 @@ class Reporter:
         )
         
         if result:
-            # Get voter names
-            voter_names = await self.client.fetch_voter_names([
+            # Get voter names for the result
+            voter_addresses = [
                 result['target_vote']['voter'],
                 result['highest_power_vote']['voter']
-            ])
+            ]
+            voter_names = await self.client.fetch_voter_names(voter_addresses)
             
-            # Generate report
+            # Generate report header
+            reports.append("\n\nPROPOSALS WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER\n\n")
+            
+            # Generate report for the result
             target_name = voter_names[result['target_vote']['voter'].lower()]
-            target_addr = result['target_vote']['voter']
-            target_vp = result['target_vote']['vp']
             majority_name = voter_names[result['highest_power_vote']['voter'].lower()]
-            majority_addr = result['highest_power_vote']['voter']
-            majority_vp = result['highest_power_vote']['vp']
             
-            reports.append("\n\nFOUND PROPOSAL(S)WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER:\n")
             reports.append(
-                f"🕵️  Found party names:\n"
-                f"    Target ({target_addr}): {target_name}\n"
-                f"    Majority Voter ({majority_addr}): {majority_name}\n\n"
+                f"\n📋 Proposal: {result['proposal_title']}\n"
+                f"─────────────────────────────\n"
+                f"CREATED[⏰]: {format_timestamp(result['proposal_created'])}\n"
+                f"\nTarget ({result['target_vote']['voter']}): {target_name} ({result['target_vote']['vp']})\n"
+                f"Majority ({result['highest_power_vote']['voter']}): {majority_name} ({result['highest_power_vote']['vp']})\n\n"
             )
-            
-            reports.append(f"Proposal [📝]: {result['proposal_title']}")
-            reports.append(f"─────────────────────────────")
-            reports.append(f"CREATED[⏰]: {format_timestamp(result['proposal_created'])}")
-            reports.append("")
-            reports.append(f"{target_name} ({target_addr}) voted with voting power {target_vp}, ")
-            reports.append(f"but highest voting power was {majority_vp} by {majority_name}\n")
         else:
-            reports.append("\nNo cases found where target is not the highest voting power voter.\n")
-            
+            reports.append("\n\nNo proposals found where target is not the highest voting power voter.\n\n")
+        
         return reports 

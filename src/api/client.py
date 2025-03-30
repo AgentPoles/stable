@@ -29,9 +29,9 @@ class SnapshotClient:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Clean up session when exiting context manager."""
-        if self.session:
+        if self.session and not self.session.closed:
             await self.session.close()
-            self.session = None
+        self.session = None
 
     async def _make_request(self, query: str, variables: Dict) -> Dict:
         """Make a GraphQL request to the API.
