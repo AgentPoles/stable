@@ -63,24 +63,29 @@ The strategy was to use the Snapshot API to efficiently retrieve and analyze gov
 
 In addition, the `getUser` endpoint was used optionally to look up human-readable names for wallet addresses (such as StableLab and the whale). This step was purely for improving the clarity of the final report and is not essential to the main logic or computation.
 
-    ### Step 1:
-    A single API call was made using `getMultipleProposals` to fetch a batch of proposals from Aave's Governance Space, starting from the latest and moving backward. Only one batch is fetched and processed at a time. If nothing relevant is found in that batch, the next one is fetched. Each batch includes 30 proposals, as set in the `config.py` file.
+### Step 1
 
-    ### Step 2:
-    For all the proposals in the batch, a single API call to `getVotes` was used to fetch all votes cast by StableLab and the whale address per proposal. Snapshot makes this easy by allowing multiple proposals and voter addresses to be passed into one request.
+A single API call was made using `getMultipleProposals` to fetch a batch of proposals from Aave's Governance Space, starting from the latest and moving backward. Only one batch is fetched and processed at a time. If nothing relevant is found in that batch, the next one is fetched. Each batch includes 30 proposals, as set in the `config.py` file.
 
-    ### Step 3:
-    From the collected data, proposals where StableLab and the whale voted differently were filtered out. Their exact vote choices were also recorded.
+### Step 2
 
-    If no such proposals are found in the current batch, a new batch is fetched and the process starts again from Step 1.
-    If at least one such proposal is found, there's no need to fetch additional batches — the analysis proceeds to the next steps, since the task is complete once a qualifying proposal is identified.
+For all the proposals in the batch, a single API call to `getVotes` was used to fetch all votes cast by StableLab and the whale address per proposal. Snapshot makes this easy by allowing multiple proposals and voter addresses to be passed into one request.
 
-    ### Step 4:
-    The vote choices were sent to a custom sentiment processor. It uses a predefined knowledge base of common Aave vote options to determine whether the votes were actually opposing.
-    It's important to note that vote choices can be different without necessarily being opposing. For example, one voter might select "abstain" while another votes "yes"—technically different, but not necessarily in conflict. The sentiment processor helps account for these nuances by interpreting the intent behind the vote options, rather than just checking for inequality.
+### Step 3
 
-    ### Step 5:
-    A summary report was prepared with the final findings. To make it clearer, the Snapshot `getUser` API was used to retrieve wallet display names (like StableLab and the whale), where available.
+From the collected data, proposals where StableLab and the whale voted differently were filtered out. Their exact vote choices were also recorded.
+
+If no such proposals are found in the current batch, a new batch is fetched and the process starts again from Step 1.
+If at least one such proposal is found, there's no need to fetch additional batches — the analysis proceeds to the next steps, since the task is complete once a qualifying proposal is identified.
+
+### Step 4
+
+The vote choices were sent to a custom sentiment processor. It uses a predefined knowledge base of common Aave vote options to determine whether the votes were actually opposing.
+It's important to note that vote choices can be different without necessarily being opposing. For example, one voter might select "abstain" while another votes "yes"—technically different, but not necessarily in conflict. The sentiment processor helps account for these nuances by interpreting the intent behind the vote options, rather than just checking for inequality.
+
+### Step 5
+
+A summary report was prepared with the final findings. To make it clearer, the Snapshot `getUser` API was used to retrieve wallet display names (like StableLab and the whale), where available.
 
 ## 2.2 RESULT SAMPLE
 
@@ -265,3 +270,50 @@ src/
 - Models: 97% coverage
 - API Client: 28% coverage
 - Overall: 58% coverage
+
+## TASK
+
+Locate a governance proposal within the AAVE DAO where StableLab cast a vote opposite to that of another influential whale (on-chain address: 0x8b37a5Af68D315cf5A64097D96621F64b5502a22).
+
+## 2.0 SOLUTION
+
+### Table of Contents
+
+- [2.1 Approach Explanation](#21-approach)
+- [2.2 Result Sample](#22-result-sample)
+- [2.3 How to Test](#23-how-to-test)
+
+## 2.1 APPROACH
+
+The strategy was to use the Snapshot API to efficiently retrieve and analyze governance data. Two core endpoints were used throughout the process:
+
+- `getMultipleProposals` – to fetch batches of proposals
+- `getVotes` – to retrieve voting activity for specific proposals and addresses
+
+In addition, the `getUser` endpoint was used optionally to look up human-readable names for wallet addresses (such as StableLab and the whale). This step was purely for improving the clarity of the final report and is not essential to the main logic or computation.
+
+### Step 1:
+
+A single API call was made using `getMultipleProposals` to fetch a batch of proposals from Aave's Governance Space, starting from the latest and moving backward. Only one batch is fetched and processed at a time. If nothing relevant is found in that batch, the next one is fetched. Each batch includes 30 proposals, as set in the `config.py` file.
+
+### Step 2:
+
+For all the proposals in the batch, a single API call to `getVotes` was used to fetch all votes cast by StableLab and the whale address per proposal. Snapshot makes this easy by allowing multiple proposals and voter addresses to be passed into one request.
+
+### Step 3:
+
+From the collected data, proposals where StableLab and the whale voted differently were filtered out. Their exact vote choices were also recorded.
+
+If no such proposals are found in the current batch, a new batch is fetched and the process starts again from Step 1.
+If at least one such proposal is found, there's no need to fetch additional batches — the analysis proceeds to the next steps, since the task is complete once a qualifying proposal is identified.
+
+### Step 4:
+
+The vote choices were sent to a custom sentiment processor. It uses a predefined knowledge base of common Aave vote options to determine whether the votes were actually opposing.
+It's important to note that vote choices can be different without necessarily being opposing. For example, one voter might select "abstain" while another votes "yes"—technically different, but not necessarily in conflict. The sentiment processor helps account for these nuances by interpreting the intent behind the vote options, rather than just checking for inequality.
+
+### Step 5:
+
+A summary report was prepared with the final findings. To make it clearer, the Snapshot `getUser` API was used to retrieve wallet display names (like StableLab and the whale), where available.
+
+## 2.2 RESULT SAMPLE
