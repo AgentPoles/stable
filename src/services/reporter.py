@@ -102,6 +102,7 @@ class Reporter:
         return (
             f"\n📊 {proposal.title}\n"
             f"─────────────────────────────\n"
+            f"CREATED[⏰]: {format_timestamp(proposal.created)}\n"
             f"{target_vote['name']} voted with voting power {target_vote['vp']}, "
             f"but majority voting power was {majority_vote['vp']} by {majority_vote['name']}\n"
         )
@@ -137,19 +138,37 @@ class Reporter:
         """
         reports = []
         target_voter = PARTIES[0]["address"]  # StableLabs
-        
-        # Get proposals from cache
-        proposal_ids = list(self.client.proposal_cache.keys())
+        space_ids = [space["space_id"] for space in SPACES]
         
         # Find cases where target voted against majority
         result = await self.majority_finder.find_votes_against_majority(
-            proposal_ids=proposal_ids,
+            space_ids=space_ids,
             target_voter=target_voter
         )
         
         if result:
-            proposal_id, target_vote, majority_vote = result
-            report = self._generate_majority_report(proposal_id, target_vote, majority_vote)
-            reports.append(report)
+            # Get voter names
+            voter_names = await self.client.fetch_voter_names([
+                result['target_vote']['voter'],
+                result['highest_power_vote']['voter']
+            ])
+            
+            # Generate report
+            target_name = voter_names[result['target_vote']['voter'].lower()]
+            target_addr = result['target_vote']['voter']
+            target_vp = result['target_vote']['vp']
+            majority_name = voter_names[result['highest_power_vote']['voter'].lower()]
+            majority_addr = result['highest_power_vote']['voter']
+            majority_vp = result['highest_power_vote']['vp']
+            
+            reports.append("\n\nFOUND PROPOSAL WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER:\n")
+            reports.append(f"Proposal [📝]: {result['proposal_title']}")
+            reports.append(f"─────────────────────────────")
+            reports.append(f"CREATED[⏰]: {format_timestamp(result['proposal_created'])}")
+            reports.append("")
+            reports.append(f"{target_name} ({target_addr}) voted with voting power {target_vp}, ")
+            reports.append(f"but highest voting power was {majority_vp} by {majority_name}\n")
+        else:
+            reports.append("\nNo cases found where target is not the highest voting power voter.\n")
             
         return reports 

@@ -65,33 +65,21 @@ async def run_majority_finder():
     logging.info(f"\nReceived Request to Find Proposals where {PARTIES[0]['name']} ({target_voter}) is not the highest voting power voter on {SPACES[0]['name']} ({SPACES[0]['space_id']}) Governance\n")
     
     async with SnapshotClient() as client:
-        finder = MajorVotingPowerFinder(client)
-        # Find cases
-        result = await finder.find_votes_against_majority(space_ids, target_voter)
+        # Initialize reporter
+        reporter = Reporter(client)
         
-        if result:
-            # Get voter names
-            voter_names = await client.fetch_voter_names([
-                result['target_vote']['voter'],
-                result['highest_power_vote']['voter']
-            ])
+        # First get proposals to populate cache
+        proposals = await client.fetch_proposals(space_ids)
+        if not proposals:
+            logging.info("\nNo proposals found")
+            return
             
-            # Generate report
-            target_name = voter_names[result['target_vote']['voter'].lower()]
-            target_addr = result['target_vote']['voter']
-            target_vp = result['target_vote']['vp']
-            majority_name = voter_names[result['highest_power_vote']['voter'].lower()]
-            majority_addr = result['highest_power_vote']['voter']
-            majority_vp = result['highest_power_vote']['vp']
-            
-            logging.info("\n\nFOUND PROPOSAL WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER:\n")
-            logging.info(f"Proposal [📝]: {result['proposal_title']}")
-            logging.info(f"─────────────────────────────")
-            logging.info(f"[⏰]: {format_timestamp(result['proposal_created'])}")
-            logging.info("")
-            logging.info("Details:")
-            logging.info(f"    {target_name} ({target_addr}) voted with voting power {target_vp}, ")
-            logging.info(f"    but highest voting power was {majority_vp} by {majority_name}\n")
+        # Generate reports
+        reports = await reporter.generate_majority_reports()
+        
+        if reports:
+            for report in reports:
+                logging.info(report)
         else:
             logging.info("\nNo cases found where target is not the highest voting power voter.\n")
 
