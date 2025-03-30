@@ -10,6 +10,7 @@ from src.api.client import SnapshotClient
 from src.services.reporter import Reporter
 from src.services.major_voting_power_finder import MajorVotingPowerFinder
 from src.config import PARTIES, SPACES
+from src.utils.date_formatter import format_timestamp
 
 # Configure logging
 logging.basicConfig(
@@ -84,10 +85,13 @@ async def run_majority_finder():
             majority_vp = result['highest_power_vote']['vp']
             
             logging.info("\n\nFOUND PROPOSAL WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER:\n")
-            logging.info(f"📊 Proposal: {result['proposal_title']}\n")
-            logging.info(f"─────────────────────────────\n")
-            logging.info(f"{target_name} ({target_addr}) voted with voting power {target_vp}, ")
-            logging.info(f"but highest voting power was {majority_vp} by {majority_name}\n")
+            logging.info(f"Proposal [📝]: {result['proposal_title']}")
+            logging.info(f"─────────────────────────────")
+            logging.info(f"[⏰]: {format_timestamp(result['proposal_created'])}")
+            logging.info("")
+            logging.info("Details:")
+            logging.info(f"    {target_name} ({target_addr}) voted with voting power {target_vp}, ")
+            logging.info(f"    but highest voting power was {majority_vp} by {majority_name}\n")
         else:
             logging.info("\nNo cases found where target is not the highest voting power voter.\n")
 

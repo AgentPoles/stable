@@ -1,12 +1,15 @@
 """Data models for the application."""
 from typing import Dict, List
 from pydantic import BaseModel
+from dataclasses import dataclass
 
-class Proposal(BaseModel):
-    """Model representing a Snapshot proposal."""
+@dataclass
+class Proposal:
+    """Model for a Snapshot proposal."""
     id: str
     title: str
     choices: List[str]
+    created: int  # Unix timestamp
 
 class Vote(BaseModel):
     """Model representing a vote on a proposal."""

@@ -86,6 +86,7 @@ class SnapshotClient:
                 id
                 title
                 choices
+                created
             }
         }
         """

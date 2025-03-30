@@ -71,6 +71,7 @@ class MajorVotingPowerFinder:
                         return {
                             'proposal_id': proposal.id,
                             'proposal_title': proposal.title,
+                            'proposal_created': proposal.created,
                             'target_vote': next(v for v in votes if v['voter'].lower() == target_voter.lower()),
                             'highest_power_vote': votes[0]
                         }
