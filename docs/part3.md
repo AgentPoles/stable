@@ -32,7 +32,7 @@ For all proposals in the batch, a single API call to `getVotes` (with the voter 
 
 ### Step 3
 
-For each of the proposals where StableLab voted, another single API call to `getVotes` was made — this time with results ordered by voting power (vp). The request was limited to 4 × number of proposals, increasing the chances of retrieving the top voter for each proposal without needing to query them individually. The response includes a combined list of votes across all proposals, sorted in descending order of voting power.
+For each of the proposals where StableLab voted, another single API call to `getVotes` was made — this time with results ordered by voting power (vp). The request was limited to VOTE_COUNT_MULTIPLIER × number of proposals (where VOTE_COUNT_MULTIPLIER is defined in `config.py`), increasing the chances of retrieving the top voter for each proposal without needing to query them individually. The response includes a combined list of votes across all proposals, sorted in descending order of voting power.
 
 ### Step 4
 
