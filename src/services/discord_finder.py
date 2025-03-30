@@ -18,8 +18,8 @@ class RateLimiter:
     - We make 2 API calls per batch
     """
     def __init__(self, max_requests: int = 100, time_window: float = 60.0):
-        self.max_requests = max_requests  # 100 requests per minute
-        self.time_window = time_window    # 60 seconds
+        self.max_requests = max_requests
+        self.time_window = time_window
         self.semaphore = asyncio.Semaphore(max_requests)
         self.last_reset = asyncio.get_event_loop().time()
         self.request_count = 0
@@ -88,13 +88,14 @@ class DiscordFinder:
             retries_left = max_retries
             skip = 0
             
+            logging.info("\n🔍 Looking for proposals in batches...\n")
+            
             while True:
                 try:
                     batch_start = skip + 1
                     batch_end = skip + NUMBER_OF_PROPOSALS_PER_REQUEST
-                    logging.info(f"\n[Batch {batch_start}-{batch_end}] Getting proposals...")
+                    logging.info(f"[Batch {batch_start}-{batch_end}] Getting proposals...")
                     
-                    # Fetch one batch of proposals
                     await self.rate_limiter.acquire()
                     proposals = await client.fetch_proposals(space_ids, skip)
                     self.rate_limiter.release()
@@ -105,8 +106,7 @@ class DiscordFinder:
                         
                     logging.info(f"[Batch {batch_start}-{batch_end}] Found {len(proposals)} proposals")
                     
-                    # Check for discords in this batch
-                    logging.info(f"[Batch {batch_start}-{batch_end}] Finding discords...")
+                    logging.info(f"[Batch {batch_start}-{batch_end}] Finding proposals with different vote choices...")
                     await self.rate_limiter.acquire()
                     choices = await client.fetch_proposals_with_varying_choices(
                         [p.id for p in proposals], parties, 0
@@ -114,10 +114,11 @@ class DiscordFinder:
                     self.rate_limiter.release()
                     
                     if choices:
-                        logging.info(f"[Batch {batch_start}-{batch_end}] Found {len(choices)} discords")
+                        logging.info(f"[Batch {batch_start}-{batch_end}] Found {len(choices)} proposals with different vote choices")
+                        logging.info("✨ stopping further search\n")
                         return choices
                     else:
-                        logging.info(f"[Batch {batch_start}-{batch_end}] No discords found")
+                        logging.info(f"[Batch {batch_start}-{batch_end}] No proposals with different vote choices found")
                         skip += len(proposals)
                     
                 except Exception as e:

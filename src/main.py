@@ -1,8 +1,13 @@
+"""
+Main entry point for the application.
+Fetches and analyzes voting data from Snapshot.
+"""
+
 import asyncio
 import logging
 from src.api.client import SnapshotClient
-from src.services.discord_finder import DiscordFinder
-from src.config import AAVE_SNAPSHOT_SPACE_ID, STABLE_LABS, WHALE
+from src.services.reporter import Reporter
+from src.config import PARTIES, SPACES
 
 # Configure logging
 logging.basicConfig(
@@ -12,33 +17,37 @@ logging.basicConfig(
 )
 
 async def main():
-    """Main entry point for the application.
-    
-    Process:
-    1. Initialize clients
-    2. Find discords between parties
-    3. Display results
-    """
-    parties = [STABLE_LABS, WHALE]
-    
-    # Log initial setup
-    logging.info(f"Checking space: {AAVE_SNAPSHOT_SPACE_ID}")
-    logging.info(f"Comparing addresses: {', '.join(parties)}")
-    
-    async with SnapshotClient() as client:
-        finder = DiscordFinder(client)
-        discords = await finder.find_discords([AAVE_SNAPSHOT_SPACE_ID], parties)
+    """Main entry point for the application."""
+    try:
+        party1 = PARTIES[0]
+        party2 = PARTIES[1]
+        space = SPACES[0]
         
-        if not discords:
-            logging.info("No discords found between the parties.")
-            return
+        logging.info(
+            f"\nReceived Request to Find Proposals with Varying Vote Choices between "
+            f"{party1['name']} ({party1['address']}) and {party2['name']} ({party2['address']}) "
+            f"on {space['name']} ({space['space_id']}) Governance\n"
+        )
+        
+        # Initialize client
+        client = SnapshotClient()
+        
+        # Initialize reporter
+        reporter = Reporter(client)
+        
+        # Generate reports
+        reports = await reporter.generate_reports()
+        
+        # Print reports
+        if reports:
+            for report in reports:
+                logging.info(report)
+        else:
+            logging.info("\nNo differences found in voting patterns")
             
-        logging.info(f"\nFound {len(discords)} proposals with different voting choices:")
-        for discord in discords:
-            logging.info(f"\nProposal ID: {discord.proposal_id}")
-            logging.info("Voting Choices:")
-            for voter, choice in discord.voter_choices.items():
-                logging.info(f"  {voter}: {discord.choices[choice-1]}")
+    except Exception as e:
+        logging.error(f"Error: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     asyncio.run(main()) 

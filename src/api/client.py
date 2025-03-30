@@ -1,7 +1,7 @@
-from typing import List, Dict, Set, Optional
+from typing import List, Dict
 import aiohttp
 from src.config import NUMBER_OF_PROPOSALS_PER_REQUEST
-from src.models import Proposal, VaryingChoices, Vote, VoteResponse
+from src.models import Proposal, VaryingChoices
 
 class SnapshotClient:
     """Client for interacting with Snapshot API.
@@ -9,10 +9,12 @@ class SnapshotClient:
     Attributes:
         base_url: The base URL for Snapshot API
         session: aiohttp ClientSession for making requests
+        proposal_cache: Cache of proposal data
     """
     def __init__(self):
         self.base_url = "https://hub.snapshot.org/graphql"
         self.session = None
+        self.proposal_cache: Dict[str, Proposal] = {}
 
     async def __aenter__(self):
         """Initialize session when entering context manager."""
@@ -54,7 +56,8 @@ class SnapshotClient:
         Process:
         1. Make GraphQL query for proposals
         2. Convert response to Proposal objects
-        3. Return list of proposals
+        3. Cache proposal data
+        4. Return list of proposals
         
         Args:
             space_ids: List of space IDs to query (e.g. ["aave.eth"])
@@ -76,6 +79,7 @@ class SnapshotClient:
                 orderDirection: desc
             ) {
                 id
+                title
                 choices
             }
         }
@@ -89,53 +93,9 @@ class SnapshotClient:
 
         data = await self._make_request(query, variables)
         if data.get("data", {}).get("proposals"):
-            return [Proposal(**proposal) for proposal in data["data"]["proposals"]]
-        return []
-
-    async def fetch_votes_and_choices(self, proposal_ids: List[str], voter_address: str, skip: int = 0) -> List[VoteResponse]:
-        """
-        Fetches votes and choices for specific proposals from a voter.
-        
-        Args:
-            proposal_ids: List of proposal IDs to query
-            voter_address: Address of the voter
-            skip: Number of votes to skip for pagination
-            
-        Returns:
-            List of VoteResponse objects containing proposal_id, choice, and choices
-        """
-        query = """
-        query GetVotes($first: Int!, $skip: Int!, $proposalIds: [String]!, $voter: String!) {
-            votes(
-                first: $first,
-                skip: $skip,
-                where: {
-                    proposal_in: $proposalIds,
-                    voter: $voter
-                },
-                orderBy: "created",
-                orderDirection: desc
-            ) {
-                proposal {
-                    id
-                    choices
-                }
-                choice
-            }
-        }
-        """
-        
-        variables = {
-            "first": NUMBER_OF_PROPOSALS_PER_REQUEST,
-            "skip": skip,
-            "proposalIds": proposal_ids,
-            "voter": voter_address.lower()
-        }
-
-        data = await self._make_request(query, variables)
-        if data.get("data", {}).get("votes"):
-            votes = [Vote(**vote) for vote in data["data"]["votes"]]
-            return [VoteResponse.from_vote(vote) for vote in votes]
+            proposals = [Proposal(**proposal) for proposal in data["data"]["proposals"]]
+            self.proposal_cache.update({p.id: p for p in proposals})
+            return proposals
         return []
 
     async def fetch_proposals_with_varying_choices(
@@ -149,9 +109,9 @@ class SnapshotClient:
         
         Process:
         1. Make GraphQL query for votes
-        2. Process votes into proposal-voter mapping
+        2. Process votes into proposal-voter mapping using voter order
         3. Filter for proposals with different choices
-        4. Create VaryingChoices objects
+        4. Create VaryingChoices objects using cached proposal data
         
         Args:
             proposal_ids: List of proposal IDs to query
@@ -161,6 +121,9 @@ class SnapshotClient:
         Returns:
             List of VaryingChoices objects containing proposals with different choices
         """
+        if len(voters) != 2:
+            raise ValueError("Exactly two voters must be specified")
+
         query = """
         query GetVotes($first: Int!, $skip: Int!, $proposalIds: [String]!, $voters: [String]!) {
             votes(
@@ -175,10 +138,8 @@ class SnapshotClient:
             ) {
                 proposal {
                     id
-                    choices
                 }
                 choice
-                voter
             }
         }
         """
@@ -195,29 +156,31 @@ class SnapshotClient:
             return []
 
         votes = data["data"]["votes"]
-        proposal_votes: Dict[str, Dict[str, int]] = {}
-        proposal_choices: Dict[str, List[str]] = {}
-        
-        for vote in votes:
-            proposal_id = vote["proposal"]["id"]
-            voter = vote["voter"]
-            # Handle both single int and list choices
-            choice = vote["choice"]
-            if isinstance(choice, list):
-                choice = choice[0]  # Take the first choice if it's a list
+        if len(votes) % 2 != 0:
+            raise ValueError("Unexpected number of votes - should be even")
+
+        varying_choices = []
+        for i in range(0, len(votes), 2):
+            vote1, vote2 = votes[i], votes[i + 1]
+            proposal_id = vote1["proposal"]["id"]
             
-            if proposal_id not in proposal_votes:
-                proposal_votes[proposal_id] = {}
-                proposal_choices[proposal_id] = vote["proposal"]["choices"]
-            
-            proposal_votes[proposal_id][voter] = choice
-        
-        return [
-            VaryingChoices.from_votes(
-                proposal_id=proposal_id,
-                voter_choices=choices,
-                proposal_choices=proposal_choices[proposal_id]
-            )
-            for proposal_id, choices in proposal_votes.items()
-            if len(set(choices.values())) > 1
-        ] 
+            # Skip if choices are the same
+            if vote1["choice"] == vote2["choice"]:
+                continue
+                
+            # Get cached proposal
+            proposal = self.proposal_cache.get(proposal_id)
+            if proposal:
+                varying_choices.append(
+                    VaryingChoices.from_votes(
+                        proposal_id=proposal_id,
+                        title=proposal.title,
+                        voter_choices={
+                            voters[0]: vote1["choice"],
+                            voters[1]: vote2["choice"]
+                        },
+                        proposal_choices=proposal.choices
+                    )
+                )
+
+        return varying_choices 
