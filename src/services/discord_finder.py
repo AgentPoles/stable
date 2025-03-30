@@ -68,10 +68,10 @@ class DiscordFinder:
         Find proposals where parties have different voting choices.
         
         Process:
-        1. Fetch proposals from specified spaces
-        2. For each proposal, fetch votes from all parties
-        3. Filter for proposals with different choices
-        4. Return list of proposals with discord
+        1. Fetch one batch of proposals
+        2. Check for discords in that batch
+        3. If discords found, return them
+        4. If no discords, fetch next batch and repeat
         
         Args:
             space_ids: List of space IDs to query
@@ -86,59 +86,47 @@ class DiscordFinder:
         """
         async with self.client as client:
             retries_left = max_retries
-            all_proposals = []
             skip = 0
             
             while True:
                 try:
+                    batch_start = skip + 1
+                    batch_end = skip + NUMBER_OF_PROPOSALS_PER_REQUEST
+                    logging.info(f"\n[Batch {batch_start}-{batch_end}] Getting proposals...")
+                    
+                    # Fetch one batch of proposals
                     await self.rate_limiter.acquire()
                     proposals = await client.fetch_proposals(space_ids, skip)
                     self.rate_limiter.release()
                     
                     if not proposals:
+                        logging.info("No more proposals to check")
                         break
                         
-                    all_proposals.extend(proposals)
-                    skip += len(proposals)
+                    logging.info(f"[Batch {batch_start}-{batch_end}] Found {len(proposals)} proposals")
                     
-                except Exception as e:
-                    self.rate_limiter.release()
-                    logging.error(f"Error fetching proposals: {e}")
-                    if retries_left <= 0:
-                        raise DiscordFinderError(f"Failed to fetch proposals after retries: {e}")
-                    retries_left -= 1
-                    await asyncio.sleep(1)
-                    continue
-            
-            if not all_proposals:
-                return []
-                
-            proposal_ids = [p.id for p in all_proposals]
-            varying_choices: List[VaryingChoices] = []
-            skip = 0
-            retries_left = max_retries
-            
-            while True:
-                try:
+                    # Check for discords in this batch
+                    logging.info(f"[Batch {batch_start}-{batch_end}] Finding discords...")
                     await self.rate_limiter.acquire()
                     choices = await client.fetch_proposals_with_varying_choices(
-                        proposal_ids, parties, skip
+                        [p.id for p in proposals], parties, 0
                     )
                     self.rate_limiter.release()
                     
-                    if not choices:
-                        break
-                        
-                    varying_choices.extend(choices)
-                    skip += len(choices)
+                    if choices:
+                        logging.info(f"[Batch {batch_start}-{batch_end}] Found {len(choices)} discords")
+                        return choices
+                    else:
+                        logging.info(f"[Batch {batch_start}-{batch_end}] No discords found")
+                        skip += len(proposals)
                     
                 except Exception as e:
                     self.rate_limiter.release()
-                    logging.error(f"Error fetching varying choices: {e}")
+                    logging.error(f"Error processing batch: {e}")
                     if retries_left <= 0:
-                        raise DiscordFinderError(f"Failed to fetch varying choices after retries: {e}")
+                        raise DiscordFinderError(f"Failed to process batch after retries: {e}")
                     retries_left -= 1
                     await asyncio.sleep(1)
                     continue
-                    
-            return varying_choices
+            
+            return []
