@@ -9,6 +9,7 @@ Locate a governance proposal within the AAVE DAO where StableLab cast a vote opp
 - [2.1 Approach Explanation](#21-approach)
 - [2.2 Result Sample](#22-result-sample)
 - [2.3 How to Test](#23-how-to-test)
+- [2.4 Code Files](#24-code-files)
 
 ## 2.1 APPROACH
 
@@ -143,8 +144,13 @@ SENTIMENT[🤔]: one party took a clear position while the other remained neutra
    - Sentiment analysis of the voting differences
    - Human-readable names for the addresses (when available)
 
-### Troubleshooting
+## 2.4 CODE FILES
 
-- If no proposals are found, try increasing the batch size in `config.py`
-- Ensure you have proper internet connectivity for API calls
-- Check the logs for any API rate limiting messages
+The project's core functionality is distributed across several key files:
+
+- [`src/main.py`](../src/main.py) - Entry point for the application, handles CLI commands and orchestrates the analysis
+- [`src/services/reporter.py`](../src/services/reporter.py) - Wraps implementation details and generates readable output
+- [`src/services/discord_finder.py`](../src/services/discord_finder.py) - Core logic for finding voting discrepancies
+- [`src/api/client.py`](../src/api/client.py) - Snapshot API client implementation
+- [`src/models.py`](../src/models.py) - Data models for proposals and votes
+- [`src/utils/date_formatter.py`](../src/utils/date_formatter.py) - Date and time formatting utilities
