@@ -152,7 +152,7 @@ class SnapshotClient:
         """
         
         variables = {
-            "first": NUMBER_OF_PROPOSALS_PER_REQUEST,
+            "first": NUMBER_OF_VOTES_PER_REQUEST,
             "skip": skip,
             "proposalIds": proposal_ids,
             "voters": [v.lower() for v in voters]
@@ -200,33 +200,41 @@ class SnapshotClient:
 
         return varying_choices
 
-    async def fetch_votes_sorted_by_voting_power(
+    async def fetch_target_votes(
         self,
-        proposal_id: str,
-        skip: int = 0,
-        first: int = NUMBER_OF_VOTES_PER_REQUEST
+        proposal_ids: List[str],
+        voter: str,
+        skip: int = 0
     ) -> List[Dict[str, Any]]:
         """
-        Fetch votes for a proposal, sorted by voting power.
+        Fetch votes for specific proposals and voter.
+        Used to efficiently find which proposals a voter participated in.
+        Orders by creation date descending (newest first).
         
         Args:
-            proposal_id: ID of the proposal to fetch votes for
+            proposal_ids: List of proposal IDs to check
+            voter: Address of the voter to find votes for
             skip: Number of votes to skip (for pagination)
-            first: Number of votes to fetch (defaults to config value)
             
         Returns:
-            List of votes sorted by voting power (highest first)
+            List of votes from the target voter, ordered by creation date (newest first)
         """
         query = """
-        query Votes($proposal: String!, $skip: Int!, $first: Int!) {
+        query GetVotes($proposalIds: [String]!, $voter: String!, $skip: Int!, $first: Int!) {
             votes(
                 first: $first,
                 skip: $skip,
-                where: { proposal: $proposal }
-                orderBy: "vp",
+                where: {
+                    proposal_in: $proposalIds,
+                    voter: $voter
+                },
+                orderBy: "created",
                 orderDirection: desc
             ) {
                 id
+                proposal {
+                    id
+                }
                 voter
                 vp
                 choice
@@ -236,7 +244,61 @@ class SnapshotClient:
         """
         
         variables = {
-            "proposal": proposal_id,
+            "proposalIds": proposal_ids,
+            "voter": voter.lower(),
+            "skip": skip,
+            "first": NUMBER_OF_VOTES_PER_REQUEST
+        }
+        
+        response = await self._make_request(query, variables)
+        votes = response.get("data", {}).get("votes", [])
+        
+        return votes
+
+    async def fetch_votes_sorted_by_voting_power(
+        self,
+        proposal_ids: List[str] | str,
+        skip: int = 0,
+        first: int = NUMBER_OF_VOTES_PER_REQUEST
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch votes for proposals, sorted by voting power.
+        
+        Args:
+            proposal_ids: Single proposal ID or list of proposal IDs to fetch votes for
+            skip: Number of votes to skip (for pagination)
+            first: Number of votes to fetch (defaults to config value)
+            
+        Returns:
+            List of votes sorted by voting power (highest first)
+        """
+        # Handle single proposal ID for backward compatibility
+        if isinstance(proposal_ids, str):
+            proposal_ids = [proposal_ids]
+
+        query = """
+        query Votes($proposalIds: [String]!, $skip: Int!, $first: Int!) {
+            votes(
+                first: $first,
+                skip: $skip,
+                where: { proposal_in: $proposalIds }
+                orderBy: "vp",
+                orderDirection: desc
+            ) {
+                id
+                proposal {
+                    id
+                }
+                voter
+                vp
+                choice
+                created
+            }
+        }
+        """
+        
+        variables = {
+            "proposalIds": proposal_ids,
             "skip": skip,
             "first": first
         }

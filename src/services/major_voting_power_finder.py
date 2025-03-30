@@ -2,10 +2,10 @@
 Service for finding cases where a voter didn't vote with the majority voting power.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 import logging
 from src.api.client import SnapshotClient
-from src.config import NUMBER_OF_PROPOSALS_PER_REQUEST, NUMBER_OF_VOTES_PER_REQUEST
+from src.config import NUMBER_OF_PROPOSALS_PER_REQUEST, VOTE_COUNT_MULTIPLIER
 
 class MajorVotingPowerFinder:
     """Service for finding cases where a voter didn't vote with the majority."""
@@ -14,6 +14,61 @@ class MajorVotingPowerFinder:
         """Initialize the finder with a SnapshotClient."""
         self.client = client
         
+    async def _process_votes_batch(
+        self,
+        target_votes: List[Dict],
+        proposals: List[Any],
+        target_voter: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Process a batch of votes to find cases where target is not highest voter.
+        Returns first case found or None.
+        """
+        voted_proposal_ids = [vote['proposal']['id'] for vote in target_votes]
+        if not voted_proposal_ids:
+            return None
+            
+        first_count = VOTE_COUNT_MULTIPLIER * len(voted_proposal_ids)
+        logging.info(f"Fetching up to {first_count} highest VP votes...")
+        
+        highest_power_votes = await self.client.fetch_votes_sorted_by_voting_power(
+            voted_proposal_ids,
+            first=first_count
+        )
+        
+        highest_votes: Dict[str, Dict] = {}
+        for vote in highest_power_votes:
+            proposal_id = vote['proposal']['id']
+            if proposal_id not in highest_votes:
+                highest_votes[proposal_id] = vote
+                
+        for target_vote in target_votes:
+            proposal_id = target_vote['proposal']['id']
+            
+            if proposal_id not in highest_votes:
+                continue
+                
+            highest_vote = highest_votes[proposal_id]
+            highest_voter = highest_vote['voter'].lower()
+            
+            if highest_voter != target_voter.lower():
+                proposal = next(p for p in proposals if p.id == proposal_id)
+                
+                logging.info(f"\n🎯 Found case where target is not highest power voter!")
+                logging.info(f"    Proposal: {proposal.title}")
+                logging.info(f"    Highest VP: {highest_vote['vp']} (Address: {highest_voter})")
+                logging.info(f"    Target VP: {target_vote['vp']}")
+                logging.info("\n✨ Stopping further search\n")
+                
+                return {
+                    'proposal_id': proposal_id,
+                    'proposal_title': proposal.title,
+                    'proposal_created': proposal.created,
+                    'target_vote': target_vote,
+                    'highest_power_vote': highest_vote
+                }
+                
+        return None
         
     async def find_votes_against_majority(
         self, space_ids: List[str], target_voter: str
@@ -23,66 +78,30 @@ class MajorVotingPowerFinder:
         Returns the first case found or None if no cases found.
         """
         logging.info("\n🔍 Searching for proposals in batches...\n")
-        
         offset = 0
+        
         while True:
-            logging.info(f"[Batch {offset+1}-{offset+NUMBER_OF_PROPOSALS_PER_REQUEST}] Getting proposals...")
-            proposals = await self.client.fetch_proposals(space_ids, offset)
-            
+            proposals = await self.client.fetch_proposals(space_ids, skip=offset)
             if not proposals:
-                logging.info(f"[Batch {offset+1}-{offset+NUMBER_OF_PROPOSALS_PER_REQUEST}] No more proposals found")
+                logging.info("No more proposals found")
                 break
                 
-            logging.info(f"[Batch {offset+1}-{offset+NUMBER_OF_PROPOSALS_PER_REQUEST}] Found {len(proposals)} proposals")
+            logging.info(f"Found {len(proposals)} proposals")
             
-            for proposal in proposals:
-                # Shorten proposal ID for logging
-                short_id = f"{proposal.id[:8]}...{proposal.id[-4:]}"
-                logging.info(f"\n  [Proposal {short_id}] Checking votes...")
-                votes_offset = 0
-                voter_addresses = set()
-                highest_power_vote = None
+            proposal_ids = [p.id for p in proposals]
+            target_votes = await self.client.fetch_target_votes(proposal_ids, target_voter)
+            if not target_votes:
+                logging.info("No target votes found in this batch")
+                offset += NUMBER_OF_PROPOSALS_PER_REQUEST
+                continue
                 
-                while True:
-                    logging.info(f"    [Votes {votes_offset+1}-{votes_offset+NUMBER_OF_VOTES_PER_REQUEST}] Checking votes...")
-                    votes = await self.client.fetch_votes_sorted_by_voting_power(
-                        proposal.id, votes_offset, NUMBER_OF_VOTES_PER_REQUEST
-                    )
-                    
-                    if not votes:
-                        break
-                        
-                    # Track highest power vote across all batches
-                    if highest_power_vote is None or votes[0]['vp'] > highest_power_vote['vp']:
-                        highest_power_vote = votes[0]
-                    
-                    # Check first vote in first batch to see if target is highest power voter
-                    if votes_offset == 0:
-                        if highest_power_vote['voter'].lower() == target_voter.lower():
-                            logging.info(f"    [Proposal {short_id}] Target is highest power voter, skipping...")
-                            break
-                    
-                    # Add all voter addresses to set for O(1) lookup
-                    for vote in votes:
-                        voter_addresses.add(vote['voter'].lower())
-                    
-                    # Check if target voted
-                    if target_voter.lower() in voter_addresses:
-                        # Found target's vote and we know they're not highest power
-                        logging.info(f"    [Proposal {short_id}] Found target vote!")
-                        logging.info("🕵️  Found case where target is not highest power voter")
-                        logging.info("✨ Stopping further search\n")
-                        return {
-                            'proposal_id': proposal.id,
-                            'proposal_title': proposal.title,
-                            'proposal_created': proposal.created,
-                            'target_vote': next(v for v in votes if v['voter'].lower() == target_voter.lower()),
-                            'highest_power_vote': highest_power_vote
-                        }
-                    
-                    votes_offset += NUMBER_OF_VOTES_PER_REQUEST
+            logging.info(f"Found {len(target_votes)} proposals with target votes")
             
+            result = await self._process_votes_batch(target_votes, proposals, target_voter)
+            if result:
+                return result
+                
             offset += NUMBER_OF_PROPOSALS_PER_REQUEST
-        
-        logging.info("\n✨ finished searching all proposals")
+            
+        logging.info("\n✨ No cases found where target is not highest voter")
         return None 

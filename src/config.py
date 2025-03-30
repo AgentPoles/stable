@@ -22,6 +22,9 @@ NUMBER_OF_PROPOSALS_PER_REQUEST = 30
 # Number of votes to fetch per request
 NUMBER_OF_VOTES_PER_REQUEST = 100
 
+# Multiplier for vote count when fetching highest VP votes
+VOTE_COUNT_MULTIPLIER = 3
+
 # Rate limiting settings
 MAX_REQUESTS_PER_WINDOW = 10
 TIME_WINDOW_SECONDS = 1.0
