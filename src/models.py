@@ -1,45 +1,42 @@
-from typing import List, Dict
+"""Data models for the application."""
+from typing import Dict, List
 from pydantic import BaseModel
 
 class Proposal(BaseModel):
-    """Represents a Snapshot proposal.
-    
-    Attributes:
-        id: The unique identifier of the proposal
-        choices: List of available voting choices (e.g., ["For", "Against", "Abstain"])
-    """
+    """Model representing a Snapshot proposal."""
     id: str
     choices: List[str]
 
+class Vote(BaseModel):
+    """Model representing a vote on a proposal."""
+    proposal: Proposal
+    choice: int
+    voter: str
+
+class VoteResponse(BaseModel):
+    """Model representing a vote response."""
+    proposal_id: str
+    choice: int
+    choices: List[str]
+
+    @classmethod
+    def from_vote(cls, vote: Vote) -> 'VoteResponse':
+        """Create VoteResponse from a Vote."""
+        return cls(
+            proposal_id=vote.proposal.id,
+            choice=vote.choice,
+            choices=vote.proposal.choices
+        )
+
 class VaryingChoices(BaseModel):
-    """Represents different voting choices for a proposal.
-    
-    Attributes:
-        proposal_id: The unique identifier of the proposal
-        voter_choices: Dictionary mapping voter addresses to their choices
-        choices: List of available voting choices from the proposal
-    """
+    """Model representing proposals with different voting choices."""
     proposal_id: str
     voter_choices: Dict[str, int]
     choices: List[str]
 
     @classmethod
-    def from_votes(
-        cls, 
-        proposal_id: str, 
-        voter_choices: Dict[str, int], 
-        proposal_choices: List[str]
-    ) -> 'VaryingChoices':
-        """Creates a VaryingChoices instance from vote data.
-        
-        Args:
-            proposal_id: The ID of the proposal
-            voter_choices: Dictionary of voter addresses to their choices
-            proposal_choices: List of available choices for the proposal
-            
-        Returns:
-            A new VaryingChoices instance
-        """
+    def from_votes(cls, proposal_id: str, voter_choices: Dict[str, int], proposal_choices: List[str]):
+        """Create VaryingChoices from vote data."""
         return cls(
             proposal_id=proposal_id,
             voter_choices=voter_choices,

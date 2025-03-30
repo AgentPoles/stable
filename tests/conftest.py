@@ -1,11 +1,17 @@
 import pytest
-import os
-from dotenv import load_dotenv
+import aiohttp
+from unittest.mock import AsyncMock
 
-@pytest.fixture(autouse=True)
-def load_env():
-    """Load environment variables for tests."""
-    load_dotenv()
+@pytest.fixture
+def mock_session():
+    """Create a mock aiohttp session for testing."""
+    session = AsyncMock(spec=aiohttp.ClientSession)
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock()
+    mock_response.__aenter__.return_value = mock_response
+    session.post.return_value = mock_response
+    return session
 
 @pytest.fixture
 def mock_proposal():
