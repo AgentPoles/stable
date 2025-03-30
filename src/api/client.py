@@ -3,9 +3,9 @@ Service for analyzing voting choices and determining their relationship.
 Handles case-insensitive matching and various common voting choice formats.
 """
 
-from typing import List, Dict
+from typing import List, Dict, Optional, Tuple, Any
 import aiohttp
-from src.config import NUMBER_OF_PROPOSALS_PER_REQUEST
+from src.config import NUMBER_OF_PROPOSALS_PER_REQUEST, NUMBER_OF_VOTES_PER_REQUEST
 from src.models import Proposal, VaryingChoices
 
 class SnapshotClient:
@@ -196,4 +196,88 @@ class SnapshotClient:
                     )
                 )
 
-        return varying_choices 
+        return varying_choices
+
+    async def fetch_votes_sorted_by_voting_power(
+        self,
+        proposal_id: str,
+        skip: int = 0,
+        first: int = NUMBER_OF_VOTES_PER_REQUEST
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch votes for a proposal, sorted by voting power.
+        
+        Args:
+            proposal_id: ID of the proposal to fetch votes for
+            skip: Number of votes to skip (for pagination)
+            first: Number of votes to fetch (defaults to config value)
+            
+        Returns:
+            List of votes sorted by voting power (highest first)
+        """
+        query = """
+        query Votes($proposal: String!, $skip: Int!, $first: Int!) {
+            votes(
+                first: $first,
+                skip: $skip,
+                where: { proposal: $proposal }
+                orderBy: "vp",
+                orderDirection: desc
+            ) {
+                id
+                voter
+                vp
+                choice
+                created
+            }
+        }
+        """
+        
+        variables = {
+            "proposal": proposal_id,
+            "skip": skip,
+            "first": first
+        }
+        
+        response = await self._make_request(query, variables)
+        votes = response.get("data", {}).get("votes", [])
+        
+        return votes
+
+    async def fetch_voter_names(self, addresses: List[str]) -> Dict[str, str]:
+        """
+        Fetch voter names from Snapshot API for multiple addresses.
+        
+        Args:
+            addresses: List of voter addresses
+            
+        Returns:
+            Dictionary mapping addresses to names (or "UNKNOWN (address)" if not found)
+        """
+        query = """
+        query GetUsers($addresses: [String]!) {
+            users(first: 10, where: { id_in: $addresses }) {
+                id
+                name
+            }
+        }
+        """
+        
+        variables = {"addresses": [addr.lower() for addr in addresses]}
+        data = await self._make_request(query, variables)
+        
+        # Create mapping of addresses to names
+        name_map = {}
+        if data.get("data", {}).get("users"):
+            for user in data["data"]["users"]:
+                # Find the original address that matches this user's ID
+                original_addr = next((addr for addr in addresses if addr.lower() == user["id"].lower()), user["id"])
+                name_map[user["id"].lower()] = user["name"] or f"UNKNOWN ({original_addr})"
+                
+        # Add UNKNOWN for any addresses not found
+        for addr in addresses:
+            addr_lower = addr.lower()
+            if addr_lower not in name_map:
+                name_map[addr_lower] = f"UNKNOWN ({addr})"
+                
+        return name_map 

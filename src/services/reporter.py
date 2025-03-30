@@ -3,10 +3,11 @@ Service for generating reports about voting relationships between parties.
 Uses DiscordFinder to find different votes and SentimentAnalyzer to determine relationships.
 """
 
-from typing import List
+from typing import List, Dict
 from src.api.client import SnapshotClient
 from src.services.discord_finder import DiscordFinder
 from src.services.sentiment import SentimentAnalyzer, ChoiceRelationship
+from src.services.major_voting_power_finder import MajorVotingPowerFinder
 from src.models import VaryingChoices
 from src.config import PARTIES, SPACES
 
@@ -18,6 +19,7 @@ class Reporter:
         self.client = client
         self.finder = DiscordFinder(client)
         self.analyzer = SentimentAnalyzer()
+        self.majority_finder = MajorVotingPowerFinder(client)
         
     def _get_party_name(self, address: str) -> str:
         """Get party name from address."""
@@ -82,6 +84,19 @@ class Reporter:
                 f"SENTIMENT [{sentiment_emoji}]: votes are different but not directly opposing\n"
             )
             
+    def _generate_majority_report(self, proposal_id: str, target_vote: Dict, majority_vote: Dict) -> str:
+        """Generate a report for a vote against majority."""
+        proposal = self.client.proposal_cache.get(proposal_id)
+        if not proposal:
+            return ""
+            
+        return (
+            f"\n📊 {proposal.title}\n"
+            f"─────────────────────────────\n"
+            f"{target_vote['name']} voted with voting power {target_vote['vp']}, "
+            f"but majority voting power was {majority_vote['vp']} by {majority_vote['name']}\n"
+        )
+            
     async def generate_reports(self) -> List[str]:
         """
         Generate reports for all spaces and parties.
@@ -102,4 +117,30 @@ class Reporter:
                 report = self._generate_report(discord, space_id)
                 reports.append(report)
                 
+        return reports
+        
+    async def generate_majority_reports(self) -> List[str]:
+        """
+        Generate reports for votes against majority.
+        
+        Returns:
+            List of report strings, one for each case found
+        """
+        reports = []
+        target_voter = PARTIES[0]["address"]  # StableLabs
+        
+        # Get proposals from cache
+        proposal_ids = list(self.client.proposal_cache.keys())
+        
+        # Find cases where target voted against majority
+        result = await self.majority_finder.find_votes_against_majority(
+            proposal_ids=proposal_ids,
+            target_voter=target_voter
+        )
+        
+        if result:
+            proposal_id, target_vote, majority_vote = result
+            report = self._generate_majority_report(proposal_id, target_vote, majority_vote)
+            reports.append(report)
+            
         return reports 
