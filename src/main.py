@@ -22,13 +22,11 @@ logging.basicConfig(
 async def run_discord_finder():
     """Run the discord finder to find proposals with different vote choices."""
     try:
-        party1 = PARTIES[0]
-        party2 = PARTIES[1]
         space = SPACES[0]
         
         logging.info(
             f"\nReceived Request to Find Proposals with Varying Vote Choices between "
-            f"{party1['name']} ({party1['address']}) and {party2['name']} ({party2['address']}) "
+            f"Target ({PARTIES['target']}) and Whale ({PARTIES['whale']}) "
             f"on {space['name']} ({space['space_id']}) Governance\n"
         )
         
@@ -59,10 +57,10 @@ async def run_majority_finder():
     """Run the majority finder to find cases where target voted against majority."""
     # Get space IDs and target voter
     space_ids = [space['space_id'] for space in SPACES]
-    target_voter = PARTIES[0]['address']  # Using StableLabs as target
+    target_voter = PARTIES['target']  # Using StableLabs as target
     
     # Log request message
-    logging.info(f"\nReceived Request to Find Proposals where {PARTIES[0]['name']} ({target_voter}) is not the highest voting power voter on {SPACES[0]['name']} ({SPACES[0]['space_id']}) Governance\n")
+    logging.info(f"\nReceived Request to Find Proposals where Target ({target_voter}) is not the highest voting power voter on {SPACES[0]['name']} ({SPACES[0]['space_id']}) Governance\n")
     
     async with SnapshotClient() as client:
         # Initialize reporter

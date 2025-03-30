@@ -26,13 +26,6 @@ class Reporter:
         self.analyzer = SentimentAnalyzer()
         self.majority_finder = MajorVotingPowerFinder(client)
         
-    def _get_party_name(self, address: str) -> str:
-        """Get party name from address."""
-        for party in PARTIES:
-            if party["address"].lower() == address.lower():
-                return party["name"]
-        return address
-        
     def _get_space_name(self, space_id: str) -> str:
         """Get space name from space_id."""
         for space in SPACES:
@@ -40,13 +33,15 @@ class Reporter:
                 return space["name"]
         return space_id
         
-    def _generate_report(self, discord: VaryingChoices, space_id: str) -> str:
+    async def _generate_report(self, discord: VaryingChoices, space_id: str) -> str:
         """Generate a report for a single discord."""
         party1, party2 = list(discord.voter_choices.keys())
         choice1, choice2 = discord.voter_choices[party1], discord.voter_choices[party2]
         
-        party1_name = self._get_party_name(party1)
-        party2_name = self._get_party_name(party2)
+        # Get voter names
+        voter_names = await self.client.fetch_voter_names([party1, party2])
+        party1_name = voter_names[party1.lower()]
+        party2_name = voter_names[party2.lower()]
         
         choice1_text = discord.choices[choice1 - 1]
         choice2_text = discord.choices[choice2 - 1]
@@ -93,20 +88,6 @@ class Reporter:
                 f"SENTIMENT[{sentiment_emoji}]: votes are different but not directly opposing\n\n"
             )
             
-    def _generate_majority_report(self, proposal_id: str, target_vote: Dict, majority_vote: Dict) -> str:
-        """Generate a report for a vote against majority."""
-        proposal = self.client.proposal_cache.get(proposal_id)
-        if not proposal:
-            return ""
-            
-        return (
-            f"\n📊 {proposal.title}\n"
-            f"─────────────────────────────\n"
-            f"CREATED[⏰]: {format_timestamp(proposal.created)}\n"
-            f"{target_vote['name']} voted with voting power {target_vote['vp']}, "
-            f"but majority voting power was {majority_vote['vp']} by {majority_vote['name']}\n"
-        )
-            
     async def generate_reports(self) -> List[str]:
         """
         Generate reports for all spaces and parties.
@@ -115,17 +96,29 @@ class Reporter:
             List of report strings, one for each discord found
         """
         reports = []
-        voter_addresses = [party["address"] for party in PARTIES]
+        voter_addresses = [PARTIES["target"], PARTIES["whale"]]
+        
+        # Get voter names for the header
+        async with self.client as client:
+            voter_names = await client.fetch_voter_names(voter_addresses)
+            target_name = voter_names[PARTIES["target"].lower()]
+            whale_name = voter_names[PARTIES["whale"].lower()]
         
         reports.append("\n\nPROPOSALS IN PROCESSED BATCH WITH DIFFERENT VOTE CHOICES\n\n")
+        reports.append(
+            f"🕵️  Found party names:\n"
+            f"    Target ({PARTIES['target']}): {target_name}\n"
+            f"    Whale ({PARTIES['whale']}): {whale_name}\n\n"
+        )
         
         for space in SPACES:
             space_id = space["space_id"]
             discords = await self.finder.find_discords([space_id], voter_addresses)
             
             for discord in discords:
-                report = self._generate_report(discord, space_id)
-                reports.append(report)
+                async with self.client as client:
+                    report = await self._generate_report(discord, space_id)
+                    reports.append(report)
                 
         return reports
         
@@ -137,7 +130,7 @@ class Reporter:
             List of report strings, one for each case found
         """
         reports = []
-        target_voter = PARTIES[0]["address"]  # StableLabs
+        target_voter = PARTIES["target"]  # StableLabs
         space_ids = [space["space_id"] for space in SPACES]
         
         # Find cases where target voted against majority
@@ -162,6 +155,12 @@ class Reporter:
             majority_vp = result['highest_power_vote']['vp']
             
             reports.append("\n\nFOUND PROPOSAL WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER:\n")
+            reports.append(
+                f"🕵️  Found party names:\n"
+                f"    Target ({target_addr}): {target_name}\n"
+                f"    Majority Holder ({majority_addr}): {majority_name}\n\n"
+            )
+            
             reports.append(f"Proposal [📝]: {result['proposal_title']}")
             reports.append(f"─────────────────────────────")
             reports.append(f"CREATED[⏰]: {format_timestamp(result['proposal_created'])}")
