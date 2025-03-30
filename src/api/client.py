@@ -1,3 +1,8 @@
+"""
+Service for analyzing voting choices and determining their relationship.
+Handles case-insensitive matching and various common voting choice formats.
+"""
+
 from typing import List, Dict
 import aiohttp
 from src.config import NUMBER_OF_PROPOSALS_PER_REQUEST
@@ -109,7 +114,7 @@ class SnapshotClient:
         
         Process:
         1. Make GraphQL query for votes
-        2. Process votes into proposal-voter mapping using voter order
+        2. Process votes into proposal-voter mapping
         3. Filter for proposals with different choices
         4. Create VaryingChoices objects using cached proposal data
         
@@ -140,6 +145,7 @@ class SnapshotClient:
                     id
                 }
                 choice
+                voter
             }
         }
         """
@@ -156,16 +162,26 @@ class SnapshotClient:
             return []
 
         votes = data["data"]["votes"]
-        if len(votes) % 2 != 0:
-            raise ValueError("Unexpected number of votes - should be even")
+        
+        # Group votes by proposal
+        proposal_votes: Dict[str, Dict[str, int]] = {}
+        for vote in votes:
+            proposal_id = vote["proposal"]["id"]
+            voter = vote["voter"].lower()
+            choice = vote["choice"]
+            
+            if proposal_id not in proposal_votes:
+                proposal_votes[proposal_id] = {}
+            proposal_votes[proposal_id][voter] = choice
 
         varying_choices = []
-        for i in range(0, len(votes), 2):
-            vote1, vote2 = votes[i], votes[i + 1]
-            proposal_id = vote1["proposal"]["id"]
-            
+        for proposal_id, voter_choices in proposal_votes.items():
+            # Skip if we don't have votes from both voters
+            if len(voter_choices) != 2:
+                continue
+                
             # Skip if choices are the same
-            if vote1["choice"] == vote2["choice"]:
+            if voter_choices[voters[0].lower()] == voter_choices[voters[1].lower()]:
                 continue
                 
             # Get cached proposal
@@ -175,10 +191,7 @@ class SnapshotClient:
                     VaryingChoices.from_votes(
                         proposal_id=proposal_id,
                         title=proposal.title,
-                        voter_choices={
-                            voters[0]: vote1["choice"],
-                            voters[1]: vote2["choice"]
-                        },
+                        voter_choices=voter_choices,
                         proposal_choices=proposal.choices
                     )
                 )
