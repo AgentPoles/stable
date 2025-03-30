@@ -22,9 +22,11 @@ class MajorVotingPowerFinder:
         Find proposals where the target voter voted but was not the voter with highest voting power.
         Returns the first case found or None if no cases found.
         """
+        logging.info("\n🔍 Searching for proposals in batches...\n")
+        
         offset = 0
         while True:
-            logging.info(f"\n[Batch {offset+1}-{offset+NUMBER_OF_PROPOSALS_PER_REQUEST}] Getting proposals...")
+            logging.info(f"[Batch {offset+1}-{offset+NUMBER_OF_PROPOSALS_PER_REQUEST}] Getting proposals...")
             proposals = await self.client.fetch_proposals(space_ids, offset)
             
             if not proposals:
@@ -34,7 +36,9 @@ class MajorVotingPowerFinder:
             logging.info(f"[Batch {offset+1}-{offset+NUMBER_OF_PROPOSALS_PER_REQUEST}] Found {len(proposals)} proposals")
             
             for proposal in proposals:
-                logging.info(f"\n  [Proposal {proposal.id}] Checking votes...")
+                # Shorten proposal ID for logging
+                short_id = f"{proposal.id[:8]}...{proposal.id[-4:]}"
+                logging.info(f"\n  [Proposal {short_id}] Checking votes...")
                 votes_offset = 0
                 voter_addresses = set()
                 
@@ -51,7 +55,7 @@ class MajorVotingPowerFinder:
                     if votes_offset == 0:
                         highest_power_voter = votes[0]['voter']
                         if highest_power_voter.lower() == target_voter.lower():
-                            logging.info(f"    [Proposal {proposal.id}] Target is highest power voter, skipping...")
+                            logging.info(f"    [Proposal {short_id}] Target is highest power voter, skipping...")
                             break
                     
                     # Add all voter addresses to set for O(1) lookup
@@ -61,7 +65,9 @@ class MajorVotingPowerFinder:
                     # Check if target voted
                     if target_voter.lower() in voter_addresses:
                         # Found target's vote and we know they're not highest power
-                        logging.info(f"    [Proposal {proposal.id}] Found target vote!")
+                        logging.info(f"    [Proposal {short_id}] Found target vote!")
+                        logging.info("🕵️  Found case where target is not highest power voter")
+                        logging.info("✨ Stopping further search\n")
                         return {
                             'proposal_id': proposal.id,
                             'proposal_title': proposal.title,

@@ -75,15 +75,19 @@ async def run_majority_finder():
                 result['highest_power_vote']['voter']
             ])
             
-            logging.info(f"\n# Found Case: {result['proposal_title']}\n")
-            logging.info(f"## Voting Power Comparison\n")
-            logging.info(f"- Target Voter: {voter_names[result['target_vote']['voter'].lower()]} ({result['target_vote']['voter']})")
-            logging.info(f"  - Voting Power: {result['target_vote']['vp']}\n")
-            logging.info(f"- Highest Power Voter: {voter_names[result['highest_power_vote']['voter'].lower()]} ({result['highest_power_vote']['voter']})")
-            logging.info(f"  - Voting Power: {result['highest_power_vote']['vp']}\n")
-            logging.info(f"## Proposal Details\n")
-            logging.info(f"- Title: {result['proposal_title']}")
-            logging.info(f"- ID: {result['proposal_id']}\n")
+            # Generate report
+            target_name = voter_names[result['target_vote']['voter'].lower()]
+            target_addr = result['target_vote']['voter']
+            target_vp = result['target_vote']['vp']
+            majority_name = voter_names[result['highest_power_vote']['voter'].lower()]
+            majority_addr = result['highest_power_vote']['voter']
+            majority_vp = result['highest_power_vote']['vp']
+            
+            logging.info("\n\nFOUND PROPOSAL WHERE TARGET IS NOT THE HIGHEST VOTING POWER VOTER:\n")
+            logging.info(f"📊 Proposal: {result['proposal_title']}\n")
+            logging.info(f"─────────────────────────────\n")
+            logging.info(f"{target_name} ({target_addr}) voted with voting power {target_vp}, ")
+            logging.info(f"but highest voting power was {majority_vp} by {majority_name}\n")
         else:
             logging.info("\nNo cases found where target is not the highest voting power voter.\n")
 
