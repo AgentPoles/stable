@@ -34,12 +34,6 @@ async def run_discord_finder():
             # Initialize reporter
             reporter = Reporter(client)
             
-            # First get proposals to populate cache
-            proposals = await client.fetch_proposals([space["space_id"]])
-            if not proposals:
-                logging.info("\nNo proposals found")
-                return
-                
             # Generate reports
             reports = await reporter.generate_reports()
             
@@ -66,12 +60,6 @@ async def run_majority_finder():
         # Initialize reporter
         reporter = Reporter(client)
         
-        # First get proposals to populate cache
-        proposals = await client.fetch_proposals(space_ids)
-        if not proposals:
-            logging.info("\nNo proposals found")
-            return
-            
         # Generate reports
         reports = await reporter.generate_majority_reports()
         
