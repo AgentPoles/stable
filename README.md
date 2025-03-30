@@ -195,6 +195,7 @@ The project's core functionality is distributed across several key files:
 - [`src/main.py`](src/main.py) - Entry point for the application, handles CLI commands and orchestrates the analysis
 - [`src/services/reporter.py`](src/services/reporter.py) - Wraps implementation details and generates readable output
 - [`src/services/discord_finder.py`](src/services/discord_finder.py) - Core logic for finding voting discrepancies
+- [`src/services/sentiment.py`](src/services/sentiment.py) - Used to determine if vote choices are actually opposing or not even if they are different
 - [`src/api/client.py`](src/api/client.py) - Snapshot API client implementation
 - [`src/models.py`](src/models.py) - Data models for proposals and votes
 - [`src/utils/date_formatter.py`](src/utils/date_formatter.py) - Date and time formatting utilities
