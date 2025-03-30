@@ -38,13 +38,15 @@ class VaryingChoices(BaseModel):
     title: str
     voter_choices: Dict[str, int]
     choices: List[str]
+    created: int  # Unix timestamp
 
     @classmethod
-    def from_votes(cls, proposal_id: str, title: str, voter_choices: Dict[str, int], proposal_choices: List[str]):
+    def from_votes(cls, proposal_id: str, title: str, voter_choices: Dict[str, int], proposal_choices: List[str], created: int):
         """Create VaryingChoices from vote data."""
         return cls(
             proposal_id=proposal_id,
             title=title,
             voter_choices=voter_choices,
-            choices=proposal_choices
+            choices=proposal_choices,
+            created=created
         ) 

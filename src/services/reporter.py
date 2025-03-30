@@ -4,12 +4,17 @@ Uses DiscordFinder to find different votes and SentimentAnalyzer to determine re
 """
 
 from typing import List, Dict
+from datetime import datetime
 from src.api.client import SnapshotClient
 from src.services.discord_finder import DiscordFinder
 from src.services.sentiment import SentimentAnalyzer, ChoiceRelationship
 from src.services.major_voting_power_finder import MajorVotingPowerFinder
 from src.models import VaryingChoices
 from src.config import PARTIES, SPACES
+
+def format_timestamp(timestamp: int) -> str:
+    """Convert Unix timestamp to human readable format."""
+    return datetime.fromtimestamp(timestamp).strftime('%B %d, %Y')
 
 class Reporter:
     """Service for generating reports about voting relationships."""
@@ -57,31 +62,35 @@ class Reporter:
         
         if relationship == ChoiceRelationship.DIRECT_OPPOSITION:
             return (
-                f"\n📋 {discord.title}\n"
+                f"\n📋 Proposal: {discord.title}\n"
                 f"─────────────────────────────\n"
-                f"{party1_name} voted {choice1_text}, while {party2_name} voted {choice2_text}\n"
-                f"SENTIMENT [{sentiment_emoji}]: votes are clearly opposing\n"
+                f"CREATED[⏰]: {format_timestamp(discord.created)}\n"
+                f"\n{party1_name} voted {choice1_text}, while {party2_name} voted {choice2_text}\n"
+                f"SENTIMENT[{sentiment_emoji}]: votes are clearly opposing\n\n"
             )
         elif relationship == ChoiceRelationship.PARTIAL_OPPOSITION:
             return (
-                f"\n📋 {discord.title}\n"
+                f"\n📋 Proposal: {discord.title}\n"
                 f"─────────────────────────────\n"
-                f"{party1_name} voted {choice1_text}, while {party2_name} voted {choice2_text}\n"
-                f"SENTIMENT [{sentiment_emoji}]: one party took a clear position while the other remained neutral\n"
+                f"CREATED[⏰]: {format_timestamp(discord.created)}\n"
+                f"\n{party1_name} voted {choice1_text}, while {party2_name} voted {choice2_text}\n"
+                f"SENTIMENT[{sentiment_emoji}]: one party took a clear position while the other remained neutral\n\n"
             )
         elif relationship == ChoiceRelationship.INCONCLUSIVE:
             return (
-                f"\n📋 {discord.title}\n"
+                f"\n📋 Proposal: {discord.title}\n"
                 f"─────────────────────────────\n"
-                f"{party1_name} voted {choice1_text}, while {party2_name} voted {choice2_text}\n"
-                f"SENTIMENT [{sentiment_emoji}]: it is not clear if the votes are opposing or not\n"
+                f"CREATED[⏰]: {format_timestamp(discord.created)}\n"
+                f"\n{party1_name} voted {choice1_text}, while {party2_name} voted {choice2_text}\n"
+                f"SENTIMENT[{sentiment_emoji}]: it is not clear if the votes are opposing or not\n\n"
             )
         else:
             return (
-                f"\n📋 {discord.title}\n"
+                f"\n📋 Proposal: {discord.title}\n"
                 f"─────────────────────────────\n"
-                f"{party1_name} voted {choice1_text}, while {party2_name} voted {choice2_text}\n"
-                f"SENTIMENT [{sentiment_emoji}]: votes are different but not directly opposing\n"
+                f"CREATED[⏰]: {format_timestamp(discord.created)}\n"
+                f"\n{party1_name} voted {choice1_text}, while {party2_name} voted {choice2_text}\n"
+                f"SENTIMENT[{sentiment_emoji}]: votes are different but not directly opposing\n\n"
             )
             
     def _generate_majority_report(self, proposal_id: str, target_vote: Dict, majority_vote: Dict) -> str:

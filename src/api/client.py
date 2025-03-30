@@ -193,7 +193,8 @@ class SnapshotClient:
                         proposal_id=proposal_id,
                         title=proposal.title,
                         voter_choices=voter_choices,
-                        proposal_choices=proposal.choices
+                        proposal_choices=proposal.choices,
+                        created=proposal.created
                     )
                 )
 
