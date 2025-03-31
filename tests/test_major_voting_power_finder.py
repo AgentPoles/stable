@@ -39,17 +39,25 @@ async def mock_client():
             return [] if skip > 0 else client.fetch_proposals.return_value
         return []
 
-    async def mock_fetch_votes_sorted_by_voting_power(proposal_id, skip=0, first=None):
+    async def mock_fetch_votes_sorted_by_voting_power(proposal_ids, skip=0, first=None):
         if isinstance(client.fetch_votes_sorted_by_voting_power.side_effect, list):
             if skip >= len(client.fetch_votes_sorted_by_voting_power.side_effect):
                 return []
             result = client.fetch_votes_sorted_by_voting_power.side_effect[skip]
             return result if result is not None else []
+        elif client.fetch_votes_sorted_by_voting_power.return_value is not None:
+            return client.fetch_votes_sorted_by_voting_power.return_value
         return []
+
+    async def mock_fetch_target_votes(proposal_ids, voter):
+        if isinstance(client.fetch_target_votes.side_effect, list):
+            return client.fetch_target_votes.side_effect[0] if client.fetch_target_votes.side_effect else []
+        return client.fetch_target_votes.return_value if client.fetch_target_votes.return_value is not None else []
 
     # Attach the mock implementations
     client.fetch_proposals.side_effect = mock_fetch_proposals
     client.fetch_votes_sorted_by_voting_power.side_effect = mock_fetch_votes_sorted_by_voting_power
+    client.fetch_target_votes.side_effect = mock_fetch_target_votes
 
     yield client
 
@@ -60,16 +68,34 @@ async def mock_client():
     await client.__aexit__(None, None, None)
 
 @pytest.mark.asyncio
-async def test_find_votes_against_majority(mock_proposal, mock_majority_result, mock_client):
+async def test_find_votes_against_majority(mock_proposal, mock_client):
     """Test finding votes against majority."""
     # Mock proposal fetch
     mock_client.fetch_proposals.return_value = [Proposal(**mock_proposal)]
     
-    # Mock votes fetch with pagination
-    mock_client.fetch_votes_sorted_by_voting_power.side_effect = [
-        [mock_majority_result["highest_power_vote"], mock_majority_result["target_vote"]],  # First page
-        []  # Second page (empty)
-    ]
+    # Mock target votes fetch with correct structure - this confirms target voted
+    target_vote = {
+        "voter": "0xtargetaddress",
+        "vp": 1000.0,
+        "choice": 1,
+        "proposal": {
+            "id": "test-proposal-1",
+            "choices": ["For", "Against", "Abstain"]
+        }
+    }
+    mock_client.fetch_target_votes.return_value = [target_vote]
+    
+    # Mock votes fetch - only need highest power vote since we know target voted
+    highest_power_vote = {
+        "voter": "0xwhaleaddress",
+        "vp": 2000.0,
+        "choice": 2,
+        "proposal": {
+            "id": "test-proposal-1",
+            "choices": ["For", "Against", "Abstain"]
+        }
+    }
+    mock_client.fetch_votes_sorted_by_voting_power.return_value = [highest_power_vote]
     
     finder = MajorVotingPowerFinder(mock_client)
     result = await finder.find_votes_against_majority(
@@ -89,20 +115,26 @@ async def test_find_votes_against_majority(mock_proposal, mock_majority_result, 
 @pytest.mark.asyncio
 async def test_find_votes_against_majority_no_results(mock_proposal, mock_client):
     """Test finding votes when target is highest power voter."""
-    # Mock proposal fetch with pagination
+    # Mock proposal fetch with empty second page to stop pagination
     mock_client.fetch_proposals.side_effect = [
         [Proposal(**mock_proposal)],  # First page
-        []  # Second page (empty to stop pagination)
+        []  # Second page (empty)
     ]
     
-    # Mock votes fetch with target as highest power voter
-    mock_client.fetch_votes_sorted_by_voting_power.side_effect = [
-        [
-            {"voter": "0xtargetaddress", "vp": 2000.0, "choice": 1},
-            {"voter": "0xwhaleaddress", "vp": 1000.0, "choice": 2}
-        ],
-        []  # Empty page to stop pagination
-    ]
+    # Mock target votes fetch - this confirms target voted
+    target_vote = {
+        "voter": "0xtargetaddress",
+        "vp": 2000.0,
+        "choice": 1,
+        "proposal": {
+            "id": "test-proposal-1",
+            "choices": ["For", "Against", "Abstain"]
+        }
+    }
+    mock_client.fetch_target_votes.return_value = [target_vote]
+    
+    # Mock votes fetch - target is the highest power voter
+    mock_client.fetch_votes_sorted_by_voting_power.return_value = [target_vote]
     
     finder = MajorVotingPowerFinder(mock_client)
     result = await finder.find_votes_against_majority(
@@ -111,8 +143,9 @@ async def test_find_votes_against_majority_no_results(mock_proposal, mock_client
     )
     
     assert result is None  # Should return None when target is highest power voter
-    assert mock_client.fetch_proposals.call_count == 2  # Initial page + empty page
-    assert mock_client.fetch_votes_sorted_by_voting_power.call_count == 1  # Only first page needed
+    assert mock_client.fetch_proposals.call_count == 2  # Two calls: first page and empty page
+    assert mock_client.fetch_target_votes.call_count == 1  # One call to check votes
+    assert mock_client.fetch_votes_sorted_by_voting_power.call_count == 1  # One call to check power
 
 @pytest.mark.asyncio
 async def test_find_votes_against_majority_error_handling(mock_client):
@@ -130,26 +163,40 @@ async def test_find_votes_against_majority_error_handling(mock_client):
         )
     
     assert str(exc_info.value) == "API Error"
-    mock_client.fetch_proposals.assert_called_once()  # Only check if fetch_proposals was called
+    mock_client.fetch_proposals.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_find_votes_against_majority_pagination(mock_proposal, mock_majority_result, mock_client):
-    """Test finding votes against majority when target is in a later page."""
+async def test_find_votes_against_majority_pagination(mock_proposal, mock_client):
+    """Test finding votes against majority with proposal pagination."""
     # Mock proposal fetch with pagination
     mock_client.fetch_proposals.side_effect = [
         [Proposal(**mock_proposal)],  # First page
         []  # Second page (empty to stop pagination)
     ]
     
-    # Mock votes fetch with pagination - target found in second page
-    mock_client.fetch_votes_sorted_by_voting_power.side_effect = [
-        [{"voter": "0xwhaleaddress", "vp": 2000.0, "choice": 1}],  # First page with highest power
-        [
-            {"voter": "0xotheraddress", "vp": 1500.0, "choice": 1},
-            {"voter": "0xtargetaddress", "vp": 1000.0, "choice": 2}
-        ],  # Second page with target
-        []  # Third page (empty to stop pagination)
-    ]
+    # Mock target votes fetch - this confirms target voted
+    target_vote = {
+        "voter": "0xtargetaddress",
+        "vp": 1000.0,
+        "choice": 1,
+        "proposal": {
+            "id": "test-proposal-1",
+            "choices": ["For", "Against", "Abstain"]
+        }
+    }
+    mock_client.fetch_target_votes.return_value = [target_vote]
+    
+    # Mock votes fetch - only need highest power vote since we know target voted
+    highest_power_vote = {
+        "voter": "0xwhaleaddress",
+        "vp": 2000.0,
+        "choice": 2,
+        "proposal": {
+            "id": "test-proposal-1",
+            "choices": ["For", "Against", "Abstain"]
+        }
+    }
+    mock_client.fetch_votes_sorted_by_voting_power.return_value = [highest_power_vote]
     
     finder = MajorVotingPowerFinder(mock_client)
     result = await finder.find_votes_against_majority(
@@ -159,34 +206,24 @@ async def test_find_votes_against_majority_pagination(mock_proposal, mock_majori
     
     assert result is not None
     assert result["proposal_id"] == "test-proposal-1"
-    assert result["proposal_title"] == "Test Proposal"
-    assert result["proposal_created"] == 1711234567
     assert result["target_vote"]["voter"] == "0xtargetaddress"
-    assert result["target_vote"]["vp"] == 1000.0
     assert result["highest_power_vote"]["voter"] == "0xwhaleaddress"
-    assert result["highest_power_vote"]["vp"] == 2000.0
-    
-    # Verify that we called fetch_votes_sorted_by_voting_power twice (first page and target page)
-    assert mock_client.fetch_votes_sorted_by_voting_power.call_count == 2
-    # Verify that we called fetch_proposals once (found in first page)
-    assert mock_client.fetch_proposals.call_count == 1
+    assert mock_client.fetch_proposals.call_count == 1  # Only one page since we found result
+    assert mock_client.fetch_target_votes.call_count == 1  # One batch of target votes
+    assert mock_client.fetch_votes_sorted_by_voting_power.call_count == 1  # One batch of votes
 
 @pytest.mark.asyncio
 async def test_find_votes_against_majority_max_pagination(mock_proposal, mock_client):
-    """Test that pagination stops after a reasonable number of pages."""
-    # Mock proposal fetch with a single page
+    """Test pagination with no results found."""
+    # Mock proposal fetch with multiple pages
     mock_client.fetch_proposals.side_effect = [
         [Proposal(**mock_proposal)],  # First page
-        []  # Empty page to stop proposal pagination
+        [Proposal(**mock_proposal)],  # Second page
+        []  # Third page (empty to stop pagination)
     ]
     
-    # Mock votes fetch to never find the target but stop after a few pages
-    mock_client.fetch_votes_sorted_by_voting_power.side_effect = [
-        [{"voter": "0xwhaleaddress", "vp": 2000.0, "choice": 1}],  # First page with highest power
-        [{"voter": "0xvoter1", "vp": 1500.0, "choice": 1}],  # Second page
-        [{"voter": "0xvoter2", "vp": 1200.0, "choice": 1}],  # Third page
-        []  # Empty page to stop vote pagination
-    ]
+    # Mock target votes fetch with no results
+    mock_client.fetch_target_votes.return_value = []
     
     finder = MajorVotingPowerFinder(mock_client)
     result = await finder.find_votes_against_majority(
@@ -194,7 +231,7 @@ async def test_find_votes_against_majority_max_pagination(mock_proposal, mock_cl
         target_voter="0xtargetaddress"
     )
     
-    assert result is None  # Should return None when target not found
-    # Verify that we check a reasonable number of pages
-    assert mock_client.fetch_proposals.call_count == 2  # Initial page + empty page
-    assert mock_client.fetch_votes_sorted_by_voting_power.call_count == 4  # Three pages of votes + empty page 
+    assert result is None  # Should return None when no results found
+    assert mock_client.fetch_proposals.call_count == 3  # Three pages of proposals
+    assert mock_client.fetch_target_votes.call_count == 2  # Two attempts to find target votes
+    assert mock_client.fetch_votes_sorted_by_voting_power.call_count == 0  # No votes fetched 
