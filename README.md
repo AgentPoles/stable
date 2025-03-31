@@ -359,19 +359,53 @@ The project's core functionality is distributed across several key files:
 <details>
 <summary><strong>Setup and Installation</strong></summary>
 
-1. Clone the repository
-2. Install dependencies:
+### Prerequisites
 
-```bash
-pip install -r requirements.txt
-```
+- Python 3.8 or higher
+- pip package manager
+- Git
 
-3. Set up environment variables if needed
-4. Run tests:
+### Installation Steps
+
+1. Clone the repository:
+
+   ```bash
+   git clone <repository-url>
+   cd <project-directory>
+   ```
+
+2. Create and activate a virtual environment:
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Running Tests
+
+Execute the test suite:
 
 ```bash
 PYTHONPATH=$PYTHONPATH:. pytest tests/ -v
 ```
+
+### Development Setup
+
+1. Install development dependencies:
+
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+2. Set up pre-commit hooks:
+   ```bash
+   pre-commit install
+   ```
 
 </details>
 
@@ -379,14 +413,29 @@ PYTHONPATH=$PYTHONPATH:. pytest tests/ -v
 <summary><strong>Project Structure</strong></summary>
 
 ```
-src/
-├── api/
-│   └── client.py          # Snapshot API client
-├── services/
-│   ├── discord_finder.py  # Vote difference finder
-│   └── major_voting_power_finder.py  # Voting power analysis
-├── models.py              # Data models
-└── main.py               # CLI entry point
+.
+├── docs/                  # Documentation
+│   ├── part2.md          # Part 2 detailed documentation
+│   └── part3.md          # Part 3 detailed documentation
+├── src/                  # Source code
+│   ├── api/              # API integration
+│   │   └── client.py     # Snapshot API client
+│   ├── services/         # Core services
+│   │   ├── discord_finder.py           # Vote difference finder
+│   │   ├── major_voting_power_finder.py # Voting power analysis
+│   │   ├── reporter.py                 # Results reporting
+│   │   └── sentiment.py                # Vote sentiment analysis
+│   ├── utils/           # Utility functions
+│   │   └── date_formatter.py # Date formatting utilities
+│   ├── config.py        # Configuration settings
+│   ├── models.py        # Data models
+│   └── main.py          # CLI entry point
+├── tests/               # Test suite
+│   ├── api/            # API tests
+│   ├── services/       # Service tests
+│   └── utils/          # Utility tests
+├── README.md           # Project documentation
+└── requirements.txt    # Project dependencies
 ```
 
 </details>
@@ -394,8 +443,49 @@ src/
 <details>
 <summary><strong>Test Coverage</strong></summary>
 
-- Services: 100% coverage
-- Models: 97% coverage
-- API Client: 28% coverage
-- Overall: 58% coverage
+### Coverage Report
+
+| Module      | Coverage |
+| ----------- | -------- |
+| Services    | 100%     |
+| Models      | 97%      |
+| API Client  | 28%      |
+| Utils       | 95%      |
+| **Overall** | 58%      |
+
+### Coverage Details
+
+- **Services (100%)**
+
+  - `discord_finder.py`: Full coverage of vote comparison logic
+  - `major_voting_power_finder.py`: Complete coverage of voting power analysis
+  - `reporter.py`: All reporting functions tested
+  - `sentiment.py`: Full coverage of vote sentiment analysis
+
+- **Models (97%)**
+
+  - Core data structures fully tested
+  - Edge cases covered
+  - Minor exception paths pending
+
+- **API Client (28%)**
+  - Basic request/response flows covered
+  - Mock testing for API interactions
+  - Integration tests pending
+  - Error handling scenarios needed
+
+### Running Coverage Reports
+
+Generate a coverage report:
+
+```bash
+PYTHONPATH=$PYTHONPATH:. pytest --cov=src tests/ --cov-report=term-missing
+```
+
+Generate HTML coverage report:
+
+```bash
+PYTHONPATH=$PYTHONPATH:. pytest --cov=src tests/ --cov-report=html
+```
+
 </details>
