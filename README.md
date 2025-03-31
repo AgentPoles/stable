@@ -489,3 +489,79 @@ PYTHONPATH=$PYTHONPATH:. pytest --cov=src tests/ --cov-report=html
 ```
 
 </details>
+
+<details>
+<summary><strong>Part 1: Addresses Associated with Stable Labs</strong></summary>
+
+## TASK
+
+Determine all on-chain addresses associated with the StableLab entity.
+
+## FINDINGS
+
+Here are the addresses that have been discovered to be associated with StableLab. While there may be additional addresses not listed here, these have been verified with reliable sources.
+
+### Primary Governance Addresses
+
+1. **Ethereum (Stablelab.eth)**
+
+   - Address: `0xECC2a9240268BC7a26386ecB49E1Befca2706AC9`
+   - Source: [Snapshot - AAVE Profile](https://snapshot.box/#/s:aave.eth/profile/0xECC2a9240268BC7a26386ecB49E1Befca2706AC9)
+
+2. **Lazy Summer DAO (Stablelab.eth)**
+
+   - Address: `0xeD9d0A8e0f2e588160fd219B70b846d0f32c7513`
+   - Source: [Tally - Lazy Summer DAO](https://www.tally.xyz/gov/lazy-summer-dao-official/delegate/0xed9d0a8e0f2e588160fd219b70b846d0f32c7513)
+
+3. **Arbitrum (Stablelab_Historical)**
+
+   - Address: `0xea172676E4105e92Cc52DBf45fD93b274eC96676`
+   - Source: [Tally - StableLab Profile](https://www.tally.xyz/profile/stablelab.eth)
+
+4. **zkSync**
+
+   - Address: `0x9e0DC300B751AeddCD3f9525735cFF5367Bf986e`
+   - Source: [Tally - zkSync Delegate](https://www.tally.xyz/gov/zksync/delegate/0x9e0dc300b751aeddcd3f9525735cff5367bf986e)
+
+5. **Historical Account 2 (Stablenodegove.eth)**
+   - Address: `0x1D1a13b16667c284b87de62CAEEfF0ce89E342B2`
+   - Source: [Snapshot - ELFI Profile](https://snapshot.box/#/s:elfi.eth/profile/0x1D1a13b16667c284b87de62CAEEfF0ce89E342B2)
+
+### Kiascan Infrastructure
+
+**Governing Council & Commission**
+
+- Address: `0x253c8cf1982d71c99dfa585368d6cb0f4e90a66c`
+
+**Node**
+
+- Address: `0x993efc86499ff9a47e5770040a02f37ed9469911`
+
+**Staking**
+
+- Address: `0xbf00e4af55cd8038e708f207b9fa5e0499e1ec1d`
+
+**Reward**
+
+- Address: `0xa21d46316afd769194b94b48004db4ae72b37887`
+
+### Cross-Chain Presence
+
+1. **Arbitrum & Optimism**
+
+   - Address: `0xcd37CA043f8479064e10635020c65FfC005d36f6`
+   - Sources:
+     - [Arbiscan](https://arbiscan.io/address/0xcd37ca043f8479064e10635020c65ffc005d36f6)
+     - [Optimistic Etherscan](https://optimistic.etherscan.io/address/0xcd37ca043f8479064e10635020c65ffc005d36f6)
+
+2. **Polygon & BSC**
+   - Address: `0xabC9b1819cc4D9846550F928B985993cF6240439`
+   - Sources:
+     - [Polygonscan](https://polygonscan.com/address/0xabc9b1819cc4d9846550f928b985993cf6240439)
+     - [BSCscan](https://bscscan.com/address/0xabc9b1819cc4d9846550f928b985993cf6240439)
+
+## NOTE
+
+This list represents discovered and verified addresses associated with StableLab. There may be additional addresses not included here. The addresses were collected from various reliable sources including blockchain explorers, governance platforms, and official documentation.
+
+</details>
