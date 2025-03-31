@@ -1,6 +1,6 @@
-# Analyze the Voting Behavior of High-Stakes Whale Entities in DAO Governance Proposals
+# Analyzing the Voting Behavior of High-Stakes Whale Entities in DAO Governance Proposals
 
-This project analyzes voting patterns in DAO governance, focusing on high-stakes entities and their influence on proposal outcomes. Using the Snapshot API, we track and compare voting behaviors, identify discrepancies between major voters, and analyze voting power distribution across proposals.
+This project analyzes voting patterns in DAO governance, with a focus on high-stakes entities and their influence on proposal outcomes. Leveraging the Snapshot API, it tracks and compares voting behaviors, identifies discrepancies between major voters, and examines the distribution of voting power across proposals.
 
 ## CHALLENGE SOLUTION
 
