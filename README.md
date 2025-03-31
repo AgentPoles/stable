@@ -2,7 +2,7 @@
 
 This project analyzes voting patterns in DAO governance, focusing on high-stakes entities and their influence on proposal outcomes. Using the Snapshot API, we track and compare voting behaviors, identify discrepancies between major voters, and analyze voting power distribution across proposals.
 
-## CHALLENGE
+## CHALLENGE SOLUTION
 
 <details>
 <summary><strong>Part 1: Address Associated with Stable Labs</strong></summary>
@@ -227,7 +227,7 @@ Similar to Part 2, the strategy here was to use the Snapshot API to efficiently 
 
 Note: API response caching was intentionally avoided. The assumption is that each task should be treated in isolation, which is important since some of the same API calls from Part 2 are reused here.
 
-Additionally, the `getUser` endpoint was used optionally to look up human-readable names for wallet addresses (e.g., StableLab and the whale). This step was only for improving the readability of the final report and is not required for the main logic or computation.
+Additionally, the `getUser` endpoint was used optionally to look up human-readable names for wallet addresses (e.g., StableLab). This step was only for improving the readability of the final report and is not required for the main logic or computation.
 
 ### Step 1
 
