@@ -74,10 +74,6 @@ Here are the addresses that have been discovered to be associated with StableLab
      - [Polygonscan](https://polygonscan.com/address/0xabc9b1819cc4d9846550f928b985993cf6240439)
      - [BSCscan](https://bscscan.com/address/0xabc9b1819cc4d9846550f928b985993cf6240439)
 
-## NOTE
-
-This list represents discovered and verified addresses associated with StableLab. There may be additional addresses not included here. The addresses were collected from various reliable sources including blockchain explorers, governance platforms, and official documentation.
-
 </details>
 
 <details>
